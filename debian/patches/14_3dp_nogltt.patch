@@ -1,0 +1,21 @@
+diff -ruN pdp-0.12.5/opengl/system/setup.c pdp-0.12.5.nogltt/opengl/system/setup.c
+--- pdp-0.12.5/opengl/system/setup.c	2011-01-30 12:43:59.000000000 +0100
++++ pdp-0.12.5.nogltt/opengl/system/setup.c	2011-01-30 12:43:26.000000000 +0100
+@@ -42,7 +42,7 @@
+ void pdp_3d_state_setup(void);
+ void pdp_3d_subcontext_setup(void);
+ void pdp_3d_cal3d_setup(void);
+-void pdp_3d_text_setup(void);
++//void pdp_3d_text_setup(void);
+ void pdp_3d_fttext_setup(void);
+ 
+ 
+@@ -82,7 +82,7 @@
+     D(pdp_3d_state_setup());
+     D(pdp_3d_subcontext_setup());
+     D(pdp_3d_cal3d_setup());
+-    D(pdp_3d_text_setup());
++    //D(pdp_3d_text_setup());
+     D(pdp_3d_fttext_setup());
+ 
+ 

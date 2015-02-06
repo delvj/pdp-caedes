@@ -1,0 +1,12 @@
+diff -ruN pdp-0.12.5.orig/configure.ac pdp-0.12.5/configure.ac
+--- pdp-0.12.5.orig/configure.ac	2008-08-15 08:58:23.000000000 +0200
++++ pdp-0.12.5/configure.ac	2012-09-20 03:07:03.983451011 +0200
+@@ -151,7 +151,7 @@
+ 		PDP_IMAGE_BASIC="$PDP_IMAGE_BASIC pdp_cheby.o"
+ 		PDP_IMAGE_SPECIAL="$PDP_IMAGE_SPECIAL pdp_histo.o"
+ 		AC_DEFINE(HAVE_PDP_GSL, 1, gsl support)
+-		LIBS="$LIBS -lgslcblas -lgsl",
++		LIBS="$LIBS -lgsl -lgslcblas",
+ 		echo "   libgsl not found: not building matrix type support")
+ 
+ 

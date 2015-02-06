@@ -1,0 +1,53 @@
+diff -ruN pdp-0.12.5.orig/Makefile pdp-0.12.5/Makefile
+--- pdp-0.12.5.orig/Makefile	2012-09-20 02:23:47.188088529 +0200
++++ pdp-0.12.5/Makefile	2012-09-20 02:22:38.612951090 +0200
+@@ -27,11 +27,11 @@
+ 
+ linux: pdp_all
+ 	rm -f pdp.pd_linux
+-	$(CC) -export_dynamic -shared -o pdp.pd_linux modules/*/*.o system/pdp.o system/*/*.o puredata/*.o $(PDP_LIBS)
++	$(CC) -rdynamic -shared -o pdp.pd_linux modules/*/*.o system/pdp.o system/*/*.o puredata/*.o $(PDP_LIBS)
+ 
+ linux_mmx: pdp_all
+ 	rm -f pdp.pd_linux
+-	$(CC) -export_dynamic -shared -o pdp.pd_linux modules/*/*.o system/pdp.o system/*/*.o puredata/*.o $(PDP_LIBS)
++	$(CC) -rdynamic -shared -o pdp.pd_linux modules/*/*.o system/pdp.o system/*/*.o puredata/*.o $(PDP_LIBS)
+ 
+ buildclean:
+ 	make -C include clean
+diff -ruN pdp-0.12.5.orig/opengl/Makefile pdp-0.12.5/opengl/Makefile
+--- pdp-0.12.5.orig/opengl/Makefile	2012-09-20 02:23:57.895955625 +0200
++++ pdp-0.12.5/opengl/Makefile	2008-08-15 08:58:22.000000000 +0200
+@@ -20,7 +20,7 @@
+ 
+ pdp_opengl.pd_linux: subdirs
+ 	rm -f pdp_opengl.pd_linux
+-	$(CC) -export_dynamic -shared -o pdp_opengl.pd_linux modules/*.o system/*.o $(LDFLAGS) -g
++	$(CC) -rdynamic -shared -o pdp_opengl.pd_linux modules/*.o system/*.o $(LDFLAGS) -g
+ 
+ pdp_opengl.pd_darwin: subdirs
+ 	rm -f pdp_opengl.pd_linux
+diff -ruN pdp-0.12.5.orig/scaf/compiler/scafc pdp-0.12.5/scaf/compiler/scafc
+--- pdp-0.12.5.orig/scaf/compiler/scafc	2012-09-20 02:24:11.987774804 +0200
++++ pdp-0.12.5/scaf/compiler/scafc	2008-08-15 08:58:22.000000000 +0200
+@@ -38,7 +38,7 @@
+ 
+ TMP_S=`tempfile -s .s`
+ $SCAFDIR/scafc.pl -I$SCAFDIR $1 > $TMP_S \
+-&& gcc -export_dynamic -shared -o $DEST $TMP_S \
++&& gcc -rdynamic -shared -o $DEST $TMP_S \
+ && strip --strip-unneeded $DEST \
+ && rm $TMP_S \
+ || exit 1
+diff -ruN pdp-0.12.5.orig/scaf/Makefile pdp-0.12.5/scaf/Makefile
+--- pdp-0.12.5.orig/scaf/Makefile	2012-09-20 02:24:25.839599645 +0200
++++ pdp-0.12.5/scaf/Makefile	2008-08-15 08:58:22.000000000 +0200
+@@ -26,7 +26,7 @@
+ 
+ pdp_scaf.pd_linux: pdp_scaf_all
+ 	rm -f pdp_scaf.pd_linux
+-	gcc -export_dynamic -shared -o pdp_scaf.pd_linux pdp/*.o $(PDP_CA_LIBS)
++	gcc -rdynamic -shared -o pdp_scaf.pd_linux pdp/*.o $(PDP_CA_LIBS)
+ 
+ install: all
+ 	install -d $(prefix)/lib/scaf

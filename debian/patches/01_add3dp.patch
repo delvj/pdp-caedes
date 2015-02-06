@@ -1,0 +1,51 @@
+diff -ruN pdp-0.12.5.old/opengl/Makefile.config pdp-0.12.5/opengl/Makefile.config
+--- pdp-0.12.5.old/opengl/Makefile.config	2009-10-29 13:23:32.000000000 +0100
++++ pdp-0.12.5/opengl/Makefile.config	2009-10-29 13:25:02.000000000 +0100
+@@ -2,16 +2,17 @@
+ prefix = /usr/local
+ 
+ PDP_VERSION=0.12.5-darcs
++PD_DIR = /usr/include
+ PDP_DIR = ../../include
+ PDP_OGL_DIR = ../include
+ 
+ 
+-CFLAGS = -DPD -O2 -funroll-loops -fomit-frame-pointer  -ffast-math \
+-    -Wall -W -Wstrict-prototypes -Werror \
++CFLAGS = -fPIC -DPD -O2 -funroll-loops -fomit-frame-pointer  -ffast-math \
++    -Wall -W -Wstrict-prototypes \
+     -Wno-unused -Wno-parentheses -Wno-switch -g -I../../../../pd/src
+ 
+ 
+-CPPFLAGS = -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include -DPDP_VERSION=\"$(PDP_VERSION)\"
++CPPFLAGS = -fPIC -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include -DPDP_VERSION=\"$(PDP_VERSION)\"
+ # CPPFLAGS = -I$(PD_DIR) -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include
+ 
+ UNAME := $(shell uname -s)
+diff -ruN pdp-0.12.5.orig/Makefile pdp-0.12.5/Makefile
+--- pdp-0.12.5.orig/Makefile	2009-10-29 14:23:41.000000000 +0100
++++ pdp-0.12.5/Makefile	2009-10-29 14:24:15.000000000 +0100
+@@ -18,6 +18,7 @@
+ 	make -C system
+ 	make -C puredata
+ 	make -C modules
++	make -C opengl
+ 
+ darwin:	pdp_all
+ 	rm -f pdp.pd_darwin
+@@ -37,6 +38,7 @@
+ 	make -C system clean
+ 	make -C puredata clean
+ 	make -C modules clean
++	make -C opengl clean
+ 
+ backupclean:
+ 	rm -f *~ */*~ */*/*~
+@@ -81,6 +83,7 @@
+ 	install -m 644 doc/introduction/*.pd $(prefix)/lib/pd/doc/pdp/introduction
+ 	install -m 644 doc/examples/*.pd $(prefix)/lib/pd/doc/pdp/examples
+ 	install -m 755 bin/pdp-config $(prefix)/bin
++	make -C opengl install
+ 
+ dist:
+ 	bin/snapshot `bin/release-version`

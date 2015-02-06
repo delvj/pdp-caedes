@@ -1,0 +1,4 @@
+?package(pd-pdp):needs=X11 section=Apps/Graphics\
+  title="PDP" \ 
+  command="/usr/bin/pd -lib pdp" \
+  icon="/usr/share/pixmaps/pd-pdp.xpm"

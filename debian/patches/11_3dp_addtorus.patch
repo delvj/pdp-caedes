@@ -1,0 +1,21 @@
+diff -ruN pdp-0.12.5.orig/opengl/modules/pdp_3d_draw.c pdp-0.12.5/opengl/modules/pdp_3d_draw.c
+--- pdp-0.12.5.orig/opengl/modules/pdp_3d_draw.c	2009-10-29 16:27:38.000000000 +0100
++++ pdp-0.12.5/opengl/modules/pdp_3d_draw.c	2009-10-29 16:27:56.000000000 +0100
+@@ -209,7 +209,7 @@
+     if (n < 1) n = 20;
+     if (m < 1) m = n;
+ 
+-    // glutWireTorus(ri, ro, n, m);
++    glutWireTorus(ri, ro, n, m);
+ 
+ }
+ 
+@@ -223,7 +223,7 @@
+     if (n < 1) n = 20;
+     if (m < 1) m = n;
+ 
+-    // glutSolidTorus(ri, ro, n, m);
++    glutSolidTorus(ri, ro, n, m);
+ 
+ }
+ 

@@ -1,0 +1,5 @@
+build-tree/pdp-0.12.4/opengl/*.pd_linux usr/lib/pd/extra
+build-tree/pdp-0.12.4/opengl/abstractions/* usr/lib/pd/extra
+build-tree/pdp-0.12.4/opengl/doc/examples/*.pd usr/lib/pd/doc/3dp/examples/
+build-tree/pdp-0.12.4/opengl/doc/objects/*.pd usr/lib/pd/doc/3dp/objects/
+debian/pd-pdp.xpm usr/share/pixmaps/

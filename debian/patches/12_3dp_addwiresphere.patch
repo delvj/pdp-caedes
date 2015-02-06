@@ -1,0 +1,21 @@
+diff -ru pdp-0.12.5/opengl/modules/pdp_3d_draw.c pdp-0.12.5.mine/opengl/modules/pdp_3d_draw.c
+--- pdp-0.12.5/opengl/modules/pdp_3d_draw.c	2008-08-15 08:58:22.000000000 +0200
++++ pdp-0.12.5.mine/opengl/modules/pdp_3d_draw.c	2010-04-09 20:31:47.000000000 +0200
+@@ -20,7 +20,7 @@
+ 
+ 
+ //#include "GL/gl.h"
+-//#include <GL/glut.h>
++#include <GL/glut.h>
+ #include <GL/glu.h>
+ #include <math.h>
+ 
+@@ -278,7 +278,7 @@
+     if (n < 1) n = 20;
+     if (m < 1) m = n;
+ 
+-    // glutWireSphere(f, n, m);
++    glutWireSphere(f, n, m);
+ 
+ }
+ 

@@ -1,0 +1,127 @@
+diff -ruN pdp-0.12.4/system/image/pdp_llconv.c ../t/pdp-0.12.4/system/image/pdp_llconv.c
+--- pdp-0.12.4/system/image/pdp_llconv.c	2005-12-27 07:33:54.000000000 +0100
++++ ../t/pdp-0.12.4/system/image/pdp_llconv.c	2005-12-27 07:39:02.000000000 +0100
+@@ -132,6 +132,112 @@
+     }
+ }
+ 
++static void llconv_yvu16planar2bgra(short int *src, unsigned char *dst, int w, int h)
++{
++
++/*
++B = 1.164(Y - 16)                   + 2.018(U - 128)
++G = 1.164(Y - 16) - 0.813(V - 128) - 0.391(U - 128)
++R = 1.164(Y - 16) + 1.596(V - 128)}
++*/
++
++    int r,g,b,y,u,v,b1,g1,r1,y1,xoff,yoff;
++    int size = w*h;
++    int voffset = size;
++    int uoffset = size + (size>>2);
++    int rgboff;
++    int rgbw = w*3;
++    int lumoff = 0;
++    int chromoff = 0;
++
++    for(yoff=0; yoff<w*h; yoff+=2*w){
++	for(xoff=0; xoff<w; xoff+=2){
++
++	    /* calculate offsets */
++	    rgboff = 3 * (xoff + yoff);
++	    lumoff = xoff + yoff;
++	    chromoff =  (xoff >> 1) + (yoff >> 2);
++	    
++	    /* get uv values */
++	    v = src[voffset + chromoff];
++	    u = src[uoffset + chromoff];
++
++	    /* calculate chroma contrib for 2x2 pixblock */
++	    b1 = FP(2.018) * u;
++	    g1 = FP(-0.813) * v + FP(-0.391) * u;
++	    r1 = FP(1.596) * v;
++
++	    /* TOP LEFT */
++
++	    /* top left luma contrib */
++	    y = src[lumoff] << 1;
++	    y1 = FP(1.164) * y;
++	    y1 -= FP(16*256);
++	    
++	    b = (b1 + y1)>>16;
++	    g = (g1 + y1)>>16;
++	    r = (r1 + y1)>>16; 
++
++	    /* store top left rgb pixel */
++	    dst[rgboff+0] = CLAMP8(r);
++	    dst[rgboff+1] = CLAMP8(g);
++	    dst[rgboff+2] = CLAMP8(b);
++
++	    /* TOP RIGHT */
++
++	    /* top right luma contrib */
++	    y = src[lumoff + 1] << 1;
++	    y1 = FP(1.164) * y;
++	    y1 -= FP(16*256);
++	    
++	    b = (b1 + y1)>>16;
++	    g = (g1 + y1)>>16;
++	    r = (r1 + y1)>>16; 
++
++	    /* store top right rgb pixel */
++	    dst[rgboff+3] = CLAMP8(r);
++	    dst[rgboff+4] = CLAMP8(g);
++	    dst[rgboff+5] = CLAMP8(b);
++
++
++	    /* BOTTOM LEFT */
++
++	    /* bottom left luma contrib */
++	    y = src[lumoff+w] << 1;
++	    y1 = FP(1.164) * y;
++	    y1 -= FP(16*256);
++	    
++	    b = (b1 + y1)>>16;
++	    g = (g1 + y1)>>16;
++	    r = (r1 + y1)>>16; 
++
++	    /* store bottom left rgb pixel */
++	    dst[rgboff+rgbw+0] = CLAMP8(r);
++	    dst[rgboff+rgbw+1] = CLAMP8(g);
++	    dst[rgboff+rgbw+2] = CLAMP8(b);
++
++	    /* BOTTOM RIGHT */
++
++	    /* bottom right luma contrib */
++	    y = src[lumoff + w + 1] << 1;
++	    y1 = FP(1.164) * y;
++	    y1 -= FP(16*256);
++	    
++	    b = (b1 + y1)>>16;
++	    g = (g1 + y1)>>16;
++	    r = (r1 + y1)>>16; 
++
++	    /* store bottom right rgb pixel */
++	    dst[rgboff+rgbw+3] = CLAMP8(r);
++	    dst[rgboff+rgbw+4] = CLAMP8(g);
++	    dst[rgboff+rgbw+5] = CLAMP8(b);
++
++	}
++
++    }
++
++}
++
+ static void llconv_yvu16planar2rgbpacked(short int *src, unsigned char *dst, int w, int h)
+ {
+ 
+@@ -553,6 +659,10 @@
+     case CONVERT( RIF_YVU__P411_S16, RIF_RGB__P____U8 ):
+ 	llconv_yvu16planar2rgbpacked((short int*) src, (unsigned char*) dst, w, h);
+ 	break;
++    case CONVERT( RIF_YVU__P411_S16, RIF_BGRA_P____U8 ):
++	llconv_yvu16planar2bgra((short int*) src, (unsigned char*) dst, w, h);
++	break;
++
+ 
+     case CONVERT( RIF_YVU__P411_S16, RIF_YVU__P411_U8 ):
+ 	llconv_yvu_planar_s16u8((short int*)src, (unsigned char*)dst, w*h);

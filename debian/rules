@@ -1,0 +1,17 @@
+#!/usr/bin/make -f
+
+DEB_TAR_SRCDIR := pdp-0.12.5
+export PDP_EXTRA_CFLAGS = -fPIC
+
+include /usr/share/cdbs/1/rules/tarball.mk
+include /usr/share/cdbs/1/rules/debhelper.mk
+include /usr/share/cdbs/1/class/autotools.mk
+include /usr/share/cdbs/1/rules/simple-patchsys.mk
+
+DEB_MAKE_INSTALL_TARGET = install prefix=$(DEB_DESTDIR)/usr
+
+ifeq ($(DEB_BUILD_ARCH),i386)
+DEB_CONFIGURE_EXTRA_FLAGS = --enable-mmx
+endif
+
+

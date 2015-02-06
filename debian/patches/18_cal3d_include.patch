@@ -1,0 +1,11 @@
+diff -ru pdp-0.12.5.orig/opengl/modules/pdp_3d_cal3d.cpp pdp-0.12.5/opengl/modules/pdp_3d_cal3d.cpp
+--- pdp-0.12.5.orig/opengl/modules/pdp_3d_cal3d.cpp	2015-02-03 07:29:35.777730835 +0100
++++ pdp-0.12.5/opengl/modules/pdp_3d_cal3d.cpp	2015-02-03 07:26:59.133735558 +0100
+@@ -21,6 +21,7 @@
+ //#include "GL/gl.h"
+ #include <GL/glut.h>
+ #include <math.h>
++#include <unistd.h>
+ 
+ 
+ extern "C" {

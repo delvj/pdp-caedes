@@ -1,0 +1,1 @@
+shlibs:Depends=freeglut3, libc6 (>= 2.3.5-1), libcal3d11c2, libgcc1 (>= 1:4.0.2), libgltt2 (>= 2.5), libglu1-xorg | libglu1, libgsl0 (>= 1.4), libpng12-0 (>= 1.2.8rel), libquicktime0, libsdl1.2debian (>> 1.2.7+1.2.8), libx11-6 | xlibs (>> 4.1.0), libxext6 | xlibs (>> 4.1.0), libxv1, xlibmesa-gl | libgl1, zlib1g (>= 1:1.2.1)

@@ -1,0 +1,12 @@
+diff -ruN pdp-0.12.5/configure pdp-0.12.5.mod/configure
+--- pdp-0.12.5/configure	2008-08-15 08:58:23.000000000 +0200
++++ pdp-0.12.5.mod/configure	2012-09-20 03:56:50.861892420 +0200
+@@ -3917,7 +3917,7 @@
+ #define HAVE_PDP_GSL 1
+ _ACEOF
+ 
+-		LIBS="$LIBS -lgslcblas -lgsl"
++		LIBS="$LIBS -lgsl -lgslcblas"
+ else
+   echo "   libgsl not found: not building matrix type support"
+ fi

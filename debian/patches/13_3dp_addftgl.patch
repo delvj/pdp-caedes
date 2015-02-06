@@ -1,0 +1,585 @@
+diff -ruN ./opengl/Makefile.config /home/caedes/SVN/pdp-0.12.5//opengl/Makefile.config
+--- pdp-0.12.5.orig/opengl/Makefile.config	2011-01-30 11:35:48.000000000 +0100
++++ pdp-0.12.5/opengl/Makefile.config	2011-01-26 14:38:10.000000000 +0100
+@@ -12,13 +12,13 @@
+     -Wno-unused -Wno-parentheses -Wno-switch -g -I../../../../pd/src
+ 
+ 
+-CPPFLAGS = -fPIC -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include -DPDP_VERSION=\"$(PDP_VERSION)\"
++CPPFLAGS = -fPIC -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include -I/usr/include/FTGL -I/usr/include/freetype2 -DPDP_VERSION=\"$(PDP_VERSION)\"
+ # CPPFLAGS = -I$(PD_DIR) -I$(PDP_DIR) -I$(PDP_OGL_DIR) -I/usr/X11R6/include
+ 
+ UNAME := $(shell uname -s)
+ ifeq ($(UNAME),Linux)
+   TARGET=linux
+-LDFLAGS =  -lGL -lglut -lcal3d -lgltt
++LDFLAGS =  -lGL -lglut -lcal3d -lftgl 
+ endif
+ ifeq ($(UNAME),Darwin)
+   TARGET = darwin
+diff -ruN ./opengl/modules/Makefile /home/caedes/SVN/pdp-0.12.5//opengl/modules/Makefile
+--- pdp-0.12.5.orig/opengl/modules/Makefile	2011-01-30 11:35:48.000000000 +0100
++++ pdp-0.12.5/opengl/modules/Makefile	2011-01-26 14:38:11.000000000 +0100
+@@ -3,7 +3,7 @@
+ all:	pdp_3d_windowcontext.o pdp_3d_draw.o pdp_3d_view.o \
+ 	pdp_3d_push.o pdp_3d_light.o pdp_3d_dlist.o pdp_3d_color.o \
+ 	pdp_3d_snap.o pdp_3d_drawmesh.o pdp_3d_for.o pdp_3d_state.o \
+-	pdp_3d_subcontext.o pdp_3d_cal3d.o pdp_3d_text.o
++	pdp_3d_subcontext.o pdp_3d_cal3d.o pdp_3d_fttext.o
+ 
+ clean:
+ 	rm -rf *~ *.o
+diff -ruN ./opengl/modules/pdp_3d_fttext.cpp /home/caedes/SVN/pdp-0.12.5//opengl/modules/pdp_3d_fttext.cpp
+--- pdp-0.12.5.orig/opengl/modules/pdp_3d_fttext.cpp	1970-01-01 01:00:00.000000000 +0100
++++ pdp-0.12.5/opengl/modules/pdp_3d_fttext.cpp	2011-01-30 10:33:40.000000000 +0100
+@@ -0,0 +1,531 @@
++/*
++ *   Pure Data Packet module.
++ *   Copyright (c) by Tom Schouten <pdp@zzz.kotnet.org>
++ *
++ *   This program is free software; you can redistribute it and/or modify
++ *   it under the terms of the GNU General Public License as published by
++ *   the Free Software Foundation; either version 2 of the License, or
++ *   (at your option) any later version.
++ *
++ *   This program is distributed in the hope that it will be useful,
++ *   but WITHOUT ANY WARRANTY; without even the implied warranty of
++ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
++ *   GNU General Public License for more details.
++ *
++ *   You should have received a copy of the GNU General Public License
++ *   along with this program; if not, write to the Free Software
++ *   Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
++ *
++ */
++
++//#include "GL/gl.h"
++#include <GL/glut.h>
++#include <math.h>
++#include <wchar.h>
++#include <locale.h>
++
++extern "C" {
++#include "pdp_opengl.h"
++#include "pdp_3dp_base.h"
++}
++
++#include <FTGL/ftgl.h>
++
++enum FT_RENDERTYPES {FT_BITMAP, FT_BUFFER, FT_EXTRUDE, FT_OUTLINE, FT_PIXMAP, FT_POLYGON, FT_TEXTURE };
++typedef struct _drawcommand
++{
++    t_pdp_dpd_command x_head;
++    int x_context_packet;
++    int x_texture_packet;
++    float *x_p0;
++    float *x_p1;
++    float *x_p2;
++    float *x_p3;
++    int *x_reverse;
++    int *x_rendertype;
++    int *x_fontsize;
++    char **new_font;
++    wchar_t **prepared_text;
++    t_pdp_method x_method;
++    GLUquadric* x_quadric; 
++    int x_have_texture; /* is there a valid texture ? */
++    int *update_font;
++    int *update_text;
++    FTFont **font;
++    char **text_array;
++    
++} t_drawcommand_fttext;
++
++
++typedef struct _pdp_3d_fttext
++{
++    t_pdp_3dp_base x_base;
++    t_pdp_dpd_commandfactory x_clist;
++
++    int x_inlets;
++    float x_p0;
++    float x_p1;
++    float x_p2;
++    float x_p3;
++    wchar_t *prepared_text;
++    int x_reverse;
++    int x_rendertype;
++    int x_fontsize;
++    int update_font;
++    int update_text;
++    char *new_font;
++    FTFont *font;
++
++    t_pdp_method x_method;
++
++    int x_tex_in;       /* the number of texture inlets */
++    GLUquadric* x_quadric; 
++    char *text_array;
++} t_pdp_3d_fttext;
++
++
++void pdp_3d_fttext_delete_texture(t_pdp_3d_fttext *x)
++{
++    pdp_base_move_packet(x, 1);
++}
++
++static void prepare_wtext(t_pdp_3d_fttext *x) {
++	x->update_text = 1;
++}
++
++static void prepare_wtext_exec(t_drawcommand_fttext *x) {
++	if (*x->text_array != NULL) {
++
++		const char   *pmbs1 = *x->text_array;
++		mbstate_t   ss1;
++		wchar_t *conversion_buffer;
++		memset ((void *)(&ss1),(int) '\0', (size_t)sizeof (ss1));
++		if (*x->prepared_text) {
++			free(*x->prepared_text);
++		}
++	    if (NULL == setlocale(LC_CTYPE, ""))
++	    {
++	        post("setlocale failed.\n");
++	    }
++		size_t string_len = strnlen(pmbs1, 1024)+1;
++		post("doing %d string_len %s", string_len, pmbs1);
++		*x->prepared_text = (wchar_t*)malloc(string_len*sizeof(wchar_t));
++		if (*x->x_reverse) {
++			conversion_buffer = (wchar_t*)malloc(string_len*sizeof(wchar_t));
++		} else {
++			conversion_buffer = *x->prepared_text;
++		}
++		size_t nchars = mbsrtowcs(conversion_buffer, &pmbs1, string_len-1, &ss1);
++		if (nchars == -1)
++			nchars = 0;
++		post("printed %d chars", nchars);
++		if (*x->x_reverse) {
++			int i;
++			for (i=0; i<nchars; i++) {
++			   (*x->prepared_text)[i] = conversion_buffer[nchars-i-1]; 
++			}
++			free(conversion_buffer);
++		}
++
++		(*x->prepared_text)[nchars] = L'\0';
++	}
++}
++
++static void pdp_3d_fttext_font(t_pdp_3d_fttext *x, t_symbol *sfont  )
++{
++    x->update_font = 1;
++
++    if (x->new_font != NULL) {
++        free(x->new_font);
++	x->new_font = NULL;
++    }
++    x->new_font = (char*)malloc((strlen(sfont->s_name)+1)*sizeof(char));
++    strcpy(x->new_font, sfont->s_name);
++}
++static void pdp_3d_fttext_reverse(t_pdp_3d_fttext *x, t_floatarg f){
++    if ((int) f != x->x_reverse) {
++        x->x_reverse = (int) f;
++        prepare_wtext(x);
++    }
++}
++static void pdp_3d_fttext_fontsize(t_pdp_3d_fttext *x, t_floatarg f){
++    if ((int) f != x->x_fontsize) {
++        x->x_fontsize = (int) f;
++        x->update_font = 1;
++    }
++}
++
++
++static
++void pdp_3d_fttext_text(t_pdp_3d_fttext *x, t_symbol *s, int argc, t_atom *argv)
++{
++	int i, len = 0;
++	for (i=0;i<argc;i++)
++	{
++	    if (argv[i].a_type == A_SYMBOL)
++	        len += (strlen( argv[i].a_w.w_symbol->s_name )+1);
++	    else if (argv[i].a_type == A_FLOAT)
++	        len += ilogbf( argv[i].a_w.w_float )+2;
++	    else
++		post("unknown symbol!");
++	}
++	if (x->text_array)
++		free(x->text_array);
++	x->text_array = (char *) malloc( (len+1)*sizeof(char) );
++	x->text_array[0]='\0';
++	for (i=0;i<argc;i++)
++	{
++	    if (argv[i].a_type == A_SYMBOL) {
++		strcat(x->text_array,argv[i].a_w.w_symbol->s_name);
++		post("pre-len %s", argv[i].a_w.w_symbol->s_name);
++	    }
++	    if (argv[i].a_type == A_FLOAT)
++		sprintf(x->text_array,"%s%.0f",x->text_array,argv[i].a_w.w_float);
++            strcat(x->text_array," ");
++	}
++	x->text_array[len]='\0';
++    	prepare_wtext(x);
++		post("pre-len %d %s", len, x->text_array);
++}
++
++/* return a new command object */
++void *pdp_3d_fttext_get_command_object(t_pdp_3d_fttext *x)
++{
++    t_drawcommand_fttext *c = (t_drawcommand_fttext *)pdp_dpd_commandfactory_get_new_command(&x->x_clist);
++    c->x_p0 = &x->x_p0;
++    c->x_p1 = &x->x_p1;
++    c->x_p2 = &x->x_p2;
++    c->x_p3 = &x->x_p3;
++    c->x_reverse = &x->x_reverse;
++    c->x_rendertype = &x->x_rendertype;
++    c->x_fontsize= &x->x_fontsize;
++    c->update_font = &x->update_font;
++    c->update_text = &x->update_text;
++    c->prepared_text = &x->prepared_text;
++    c->font = &x->font;
++    c->new_font = &x->new_font;
++    c->text_array = &x->text_array;
++    c->x_context_packet = pdp_3dp_base_get_context_packet(x);
++    c->x_texture_packet = pdp_packet_copy_ro(pdp_base_get_packet(x, 1));
++
++    c->x_quadric = x->x_quadric; /* $$$TODO: this assumes quadric doesn't change */
++
++    c->x_method = x->x_method;
++    //post("o: %x, vc %x, n %d, u %d", x, c, x->x_clist.nb_commands, c->x_head.used);
++    return c;
++}
++
++/* object drawing methods */
++
++static void draw_clear(t_drawcommand_fttext *x)
++{
++    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
++
++}
++
++
++
++static void draw_etext(t_drawcommand_fttext *x)
++{
++
++    if (*x->update_font && *x->new_font) {
++        if (*x->font) {
++           delete *x->font;
++           *x->font = NULL;
++        };
++        switch (*x->x_rendertype) {
++ 		   /* TODO:
++        	case FT_BITMAP:
++                *x->font = new FTBitmapFont(*x->new_font);
++        	    break;
++        	case FT_PIXMAP:
++        	    *x->font = new FTPixmapFont(*x->new_font);
++        	    break;
++		    */
++            case FT_BUFFER:
++                *x->font = new FTBufferFont(*x->new_font);
++                break;
++            case FT_EXTRUDE:
++               *x->font = new FTExtrudeFont(*x->new_font);
++                break;
++            case FT_OUTLINE:
++                *x->font = new FTOutlineFont(*x->new_font);
++                break;
++            case FT_POLYGON:
++                *x->font = new FTPolygonFont(*x->new_font);
++            break;
++            case FT_TEXTURE:
++                *x->font = new FTTextureFont(*x->new_font);
++                break;
++            default:
++        	    *x->font = new FTPolygonFont(*x->new_font);
++        }
++        if (!(*x->font)->CharMap(ft_encoding_unicode)) {
++           post("pdp_3d_fttext: cant set charmap");
++          	for (int i=0; i<(*x->font)->CharMapCount(); i++) {
++          		post(" -> %d", (*x->font)->CharMapList()[i]);
++          	}
++          	post(" -> %d", ft_encoding_latin_1);
++          	post(" -> %d", ft_encoding_unicode);
++           }
++    
++        (*x->font)->UseDisplayList(true);
++        (*x->font)->Depth(*x->x_p0);
++        (*x->font)->Outset(*x->x_p1, *x->x_p2);
++	if (*x->x_rendertype == FT_TEXTURE || *x->x_rendertype == FT_BUFFER)
++ 	       (*x->font)->FaceSize(*x->x_fontsize*5);
++	else
++ 	       (*x->font)->FaceSize(*x->x_fontsize);
++        *x->update_font = 0;
++    }
++
++    if (*x->font) {
++        if (*x->update_text && *x->text_array) {
++	    prepare_wtext_exec(x);
++	    *x->update_text = 0;
++        }
++
++
++        if (*x->prepared_text) {
++	    if (*x->x_rendertype == FT_TEXTURE || *x->x_rendertype == FT_BUFFER) {
++			glPushMatrix();
++		    	glScalef(0.2, 0.2, 0.2);
++	    }
++	    if (NULL == setlocale(LC_CTYPE, ""))
++	    {
++	        post("setlocale failed.\n");
++	    }
++            if (*x->x_p3 == 0)  {
++                    (*x->font)->Render(*x->prepared_text);
++            } 
++            else 
++            {
++                    FTPoint *pto, *pto0;
++                    float charwidth = (*x->font)->Advance("a");
++                    pto0  = new FTPoint(0,0,0);
++                    pto  = new FTPoint((*x->x_p3)*charwidth,0,0);
++                    (*x->font)->Render(*x->prepared_text, -1, *pto0, *pto);
++            }
++	    if (*x->x_rendertype == FT_TEXTURE || *x->x_rendertype == FT_BUFFER)
++		    	glPopMatrix();
++        }
++    }
++
++}
++
++/* the actual (registered) draw method */
++/* when this is finished, the drawcommand object should commit suicide */
++
++static void draw_process(t_drawcommand_fttext *x)
++{
++    int p = x->x_context_packet;
++    int pt = x->x_texture_packet;
++    float fx=1;
++    float fy=1;
++    x->x_have_texture = pdp_packet_texture_isvalid(pt);
++
++    /* check if it's a valid buffer we can draw in */
++    if (pdp_packet_3Dcontext_isvalid(p)){ 
++	
++
++	/* setup rendering context */
++	pdp_packet_3Dcontext_set_rendering_context(p);
++
++	/* enable texture */
++	if (x->x_have_texture){
++	    fx = pdp_packet_texture_fracx(pt);
++	    fy = pdp_packet_texture_fracy(pt);
++	    glEnable(GL_TEXTURE_2D);
++	    pdp_packet_texture_make_current(pt);
++	    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
++	    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
++	    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR);
++	    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR);
++	    glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);	   
++
++	    /* scale texture matrix to reflect subtexture's coords */
++	    glMatrixMode(GL_TEXTURE);
++	    //glLoadIdentity();
++	    glPushMatrix();
++	    glScalef(fx, fy, 1);
++	    glMatrixMode(GL_MODELVIEW);
++
++	    gluQuadricTexture(x->x_quadric, 1);
++	}
++
++	/* call the generating method */
++	if (x->x_method) (*x->x_method)(x);
++
++	/* disable texture */
++	if (x->x_have_texture){
++	    glMatrixMode(GL_TEXTURE);
++	    glPopMatrix();
++	    glMatrixMode(GL_MODELVIEW);
++	    glDisable(GL_TEXTURE_2D);
++	    gluQuadricTexture(x->x_quadric, 0);
++	}
++
++    }
++
++    /* you know the drill: command done, sword in belly. */
++    pdp_packet_mark_unused(x->x_texture_packet);
++    pdp_dpd_command_suicide(x);
++
++}
++
++static void pdp_3d_fttext_p0(t_pdp_3d_fttext *x, t_floatarg f){
++    x->x_p0 = f;
++    x->update_font = 1;
++}
++static void pdp_3d_fttext_p1(t_pdp_3d_fttext *x, t_floatarg f){
++    x->x_p1 = f;
++    x->update_font = 1;
++}
++static void pdp_3d_fttext_p2(t_pdp_3d_fttext *x, t_floatarg f){
++    x->x_p2 = f;
++    x->update_font = 1;
++}
++
++static void pdp_3d_fttext_p3(t_pdp_3d_fttext *x, t_floatarg f){x->x_p3 = f;}
++
++
++t_class *pdp_3d_fttext_class;
++
++
++
++void pdp_3d_fttext_free(t_pdp_3d_fttext *x)
++{
++    if (x->font != NULL){
++	delete x->font;
++        x->font = NULL;
++    }
++    if (x->new_font != NULL){
++	free(x->new_font);
++        x->new_font = NULL;
++    }
++    if (x->text_array){
++	free(x->text_array);
++	x->text_array = NULL;
++    }
++    if (x->prepared_text) {
++  	    free(x->prepared_text);
++    }
++
++    pdp_3dp_base_free(x);
++    gluDeleteQuadric(x->x_quadric);
++    pdp_dpd_commandfactory_free(&x->x_clist);
++}
++
++void pdp_3d_fttext_object(t_pdp_3d_fttext *x, t_symbol *s)
++{
++    /* find out if it is a buffer operation */
++    x->update_font = 1;
++    if (s == gensym("clear"))   {x->x_method = (t_pdp_method)draw_clear;   x->x_inlets = 0;}
++
++    /* if not, find ouT Which object we need to draw */
++    else if (s == gensym("bitmap"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_BITMAP;}
++    else if (s == gensym("buffer"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_BUFFER;}
++    else if (s == gensym("extrude"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_EXTRUDE;}
++    else if (s == gensym("outline"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_OUTLINE;}
++    else if (s == gensym("pixmap"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_PIXMAP;}
++    else if (s == gensym("polygon"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_POLYGON;}
++    else if (s == gensym("texture"))      {x->x_method = (t_pdp_method)draw_etext; x->x_rendertype=FT_TEXTURE;}
++
++    else {
++	post("pdp_3d_fttext: object %s not found", s->s_name);
++	x->x_method = 0;
++	x->x_inlets = 0;
++    }
++
++    // the number of texture inlets
++    x->x_inlets = 4;
++    x->x_tex_in = 1;
++}
++
++extern "C"
++void *pdp_3d_fttext_new(t_symbol *s, t_floatarg p0, t_floatarg p1, t_floatarg p2, t_floatarg p3)
++{
++    t_pdp_3d_fttext *x = (t_pdp_3d_fttext *)pd_new(pdp_3d_fttext_class);
++       
++    char param[] = "p0";
++    int i;
++
++    /* super init */
++    pdp_3dp_base_init(x);
++
++    x->x_p0 = p0;
++    x->x_p1 = p1;
++    x->x_p2 = p2;
++    x->x_p3 = p3;
++    x->x_reverse = 0;
++    x->x_fontsize = 12;
++    x->update_font = 1;
++    x->update_text = 0;
++    x->prepared_text = NULL;
++    x->font = NULL;
++    x->new_font = NULL;
++    pdp_3d_fttext_font(x, gensym("/usr/share/fonts/truetype/ttf-dejavu/DejaVuSans-Bold.ttf")  );
++    x->text_array = NULL;
++
++    /* set the object & number of inlets */
++    pdp_3d_fttext_object(x, s);
++
++    /* create texture inlets */
++    for(i=0; i<x->x_tex_in; i++){
++	pdp_base_add_pdp_inlet(x);
++    }
++
++    /* create additional inlets */
++    for(i=0; i<x->x_inlets; i++){
++	pdp_base_add_gen_inlet(x, gensym("float"), gensym(param));
++	param[1]++;
++    }
++
++    /* create dpd outlet */
++    pdp_3dp_base_add_outlet(x, (t_pdp_method)draw_process, 0);
++
++
++
++   /* setup quadric */
++   x->x_quadric = gluNewQuadric();
++   
++    /* init command list */
++    pdp_dpd_commandfactory_init(&x->x_clist, sizeof(t_drawcommand_fttext));
++
++    /* register command factory method */
++    pdp_dpd_base_register_command_factory_method(x, (t_pdp_newmethod)pdp_3d_fttext_get_command_object);
++
++    return (void *)x;
++}
++
++
++#ifdef __cplusplus
++extern "C"
++{
++#endif
++
++
++void pdp_3d_fttext_setup(void)
++{
++    pdp_3d_fttext_class = class_new(gensym("3dp_fttext"), (t_newmethod)pdp_3d_fttext_new,
++    	(t_method)pdp_3d_fttext_free, sizeof(t_pdp_3d_fttext), 0, A_SYMBOL, 
++				  A_DEFFLOAT, A_DEFFLOAT, A_DEFFLOAT, A_DEFFLOAT, A_NULL);
++    pdp_3dp_base_setup(pdp_3d_fttext_class);
++
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_p0, gensym("p0"),  A_DEFFLOAT, A_NULL);  
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_p1, gensym("p1"),  A_DEFFLOAT, A_NULL);  
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_p2, gensym("p2"),  A_DEFFLOAT, A_NULL);  
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_p3, gensym("p3"),  A_DEFFLOAT, A_NULL);  
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_text, gensym("text"),  A_GIMME, A_NULL);
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_font, gensym("font"),  A_SYMBOL, A_NULL);
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_reverse, gensym("reverse"),  A_DEFFLOAT, A_NULL);
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_object, gensym("rendertype"),  A_SYMBOL, A_NULL);
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_fontsize, gensym("fontsize"),  A_DEFFLOAT, A_NULL);
++
++    class_addmethod(pdp_3d_fttext_class, (t_method)pdp_3d_fttext_delete_texture, gensym("delete_texture"),  A_DEFFLOAT, A_NULL);  
++
++}
++
++#ifdef __cplusplus
++}
++#endif
+diff -ruN ./opengl/system/setup.c /home/caedes/SVN/pdp-0.12.5//opengl/system/setup.c
+--- pdp-0.12.5.orig/opengl/system/setup.c	2011-01-30 11:35:48.000000000 +0100
++++ pdp-0.12.5/opengl/system/setup.c	2011-01-26 14:38:12.000000000 +0100
+@@ -43,6 +43,7 @@
+ void pdp_3d_subcontext_setup(void);
+ void pdp_3d_cal3d_setup(void);
+ void pdp_3d_text_setup(void);
++void pdp_3d_fttext_setup(void);
+ 
+ 
+     //#define D(x) { pdp_post_n( #x ".." ); x; pdp_post("done"); }
+@@ -82,6 +83,7 @@
+     D(pdp_3d_subcontext_setup());
+     D(pdp_3d_cal3d_setup());
+     D(pdp_3d_text_setup());
++    D(pdp_3d_fttext_setup());
+ 
+ 
+ }

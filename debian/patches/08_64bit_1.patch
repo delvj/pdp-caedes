@@ -1,0 +1,23 @@
+diff -ru pdp-0.12.5.orig/Makefile.config.in pdp-0.12.5/Makefile.config.in
+--- pdp-0.12.5.orig/Makefile.config.in	2008-08-15 08:58:22.000000000 +0200
++++ pdp-0.12.5/Makefile.config.in	2010-05-13 06:53:51.000000000 +0200
+@@ -5,7 +5,7 @@
+ #PD_EXECUTABLE=/path_to_pd_dir/bin/pd
+ PD_CPPFLAGS=@PD_CPPFLAGS@
+ PD_EXECUTABLE=@PD_EXECUTABLE@
+-PDP_CFLAGS=@PDP_CFLAGS@
++PDP_CFLAGS=@PDP_CFLAGS@ -fPIC
+ 
+ # these are reused in opengl module
+ prefix=@prefix@
+@@ -57,5 +57,9 @@
+ 
+ .c.o:
+ 	$(CC) $(PDP_CFLAGS) $(PDP_CPPFLAGS) -o $*.o -c $*.c
++
++.cpp.o:
++	$(CC) $(PDP_CFLAGS) $(PDP_CPPFLAGS) -o $*.o -c $*.cpp
++
+ .s.o:
+ 	$(AS) -o $*.o $*.s $(PDP_AFLAGS)
+
