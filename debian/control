@@ -3,7 +3,7 @@ Section: graphics
 Priority: extra
 Maintainer: Pablo Martin <caedes@sindominio.net>
 Uploaders: Guenter Geiger (Debian/GNU) <geiger@debian.org>
-Build-Depends: cdbs, debhelper (>> 4.0.0), puredata (>= 0.38), libquicktime-dev, libsdl1.2-dev, libpng12-dev, libgsl0-dev, libxv-dev, freeglut3-dev, libcal3d12-dev, libftgl-dev
+Build-Depends: cdbs, debhelper (>> 4.0.0), puredata (>= 0.38), libquicktime-dev, libsdl1.2-dev, libpng12-dev, libgsl0-dev, libxv-dev, freeglut3-dev, libcal3d12-dev, libftgl-dev, libv4l-dev
 Standards-Version: 3.6.2
 
 Package: pd-pdp-caedes
